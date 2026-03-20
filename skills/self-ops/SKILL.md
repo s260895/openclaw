@@ -1,7 +1,7 @@
 ---
 name: self-ops
 description: Manage OpenClaw's own EC2 infrastructure. Use when checking server health, restarting gateway, viewing logs, deploying code updates, managing SSL certificates, updating config, or troubleshooting the production instance. Triggers on "server status", "restart gateway", "deploy changes", "check logs", "SSL renewal", "update config", "infrastructure", "EC2", "production server".
-metadata: {"openclaw": {"emoji": "🔧", "requires": {"env": ["OPENCLAW_SSH_KEY_PATH"]}}}
+metadata: {"openclaw": {"emoji": "🔧"}}
 ---
 
 # Self-Ops Skill
