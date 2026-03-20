@@ -37,6 +37,34 @@ If SSH commands fail with "Connection timed out" or "Connection refused":
 2. **Ask the owner:** "SSH is timing out. Please check if the AWS Security Group allows SSH access from 16.58.140.99 (the EC2 instance's own IP). The instance needs to SSH to itself for self-management."
 3. **Fallback:** Use `curl https://openclaw.sumeetzankar.com/healthz` to verify the gateway is at least responding on HTTPS
 
+## Git Troubleshooting
+
+If `git pull` fails with authentication errors like:
+- "Authentication failed"
+- "could not read Username"
+- "remote: Invalid username or password"
+- "fatal: Authentication failed for 'https://github.com/...'"
+
+**This means the GitHub token has expired.**
+
+**Ask the owner:** "Git authentication failed - the GitHub access token has likely expired. Please generate a new Personal Access Token (PAT) on GitHub and update the git credentials on EC2."
+
+**To fix (owner must do this):**
+
+1. Generate a new GitHub PAT at: https://github.com/settings/tokens
+   - Select "repo" scope for full repository access
+   - Set expiration as desired
+
+2. SSH into EC2 and update the git remote URL with the new token:
+   ```bash
+   cd ~/openclaw
+   git remote set-url origin https://<NEW_TOKEN>@github.com/s260895/openclaw.git
+   ```
+
+3. Verify with: `git pull origin ec2-deploy`
+
+**Note:** The owner controls GitHub token rotation. This skill cannot update tokens itself.
+
 ## Quick Commands
 
 For brevity, define an alias variable (or just copy the full SSH prefix):
