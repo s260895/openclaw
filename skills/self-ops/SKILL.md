@@ -19,59 +19,74 @@ Manage OpenClaw's production EC2 infrastructure via SSH.
 
 ## SSH Command Pattern
 
-All SSH commands use the environment variable for the key path:
+All SSH commands use the environment variable for the key path, with host key checking disabled (safe since we're connecting to ourselves):
 
 ```bash
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "<command>"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@16.58.140.99 "<command>"
 ```
 
+**Important:** Always include `-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null` in SSH commands.
+
+**Also add a timeout:** Use `-o ConnectTimeout=10` to avoid hanging on network issues.
+
+## SSH Troubleshooting
+
+If SSH commands fail with "Connection timed out" or "Connection refused":
+
+1. **Check firewall:** The AWS Security Group must allow SSH (port 22) from the EC2's own Elastic IP (16.58.140.99)
+2. **Ask the owner:** "SSH is timing out. Please check if the AWS Security Group allows SSH access from 16.58.140.99 (the EC2 instance's own IP). The instance needs to SSH to itself for self-management."
+3. **Fallback:** Use `curl https://openclaw.sumeetzankar.com/healthz` to verify the gateway is at least responding on HTTPS
+
 ## Quick Commands
+
+For brevity, define an alias variable (or just copy the full SSH prefix):
+
+```bash
+EC2_SSH="ssh -i $OPENCLAW_SSH_KEY_PATH -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99"
+```
 
 ### Check Server Health
 
 ```bash
-# Gateway container status
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "docker compose -f ~/openclaw/docker-compose.yml ps"
-
-# Gateway health endpoint
+# Gateway health endpoint (no SSH needed - always try this first)
 curl -s https://openclaw.sumeetzankar.com/healthz
 
+# Gateway container status
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "docker compose -f ~/openclaw/docker-compose.yml ps"
+
 # WhatsApp channel status
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "cd ~/openclaw && docker compose exec openclaw-gateway openclaw channels status"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "cd ~/openclaw && docker compose exec -T openclaw-gateway openclaw channels status"
 
 # System resources (memory, swap, disk)
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "free -h && df -h /"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "free -h && df -h /"
 ```
 
 ### View Logs
 
 ```bash
 # Recent gateway logs
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "docker compose -f ~/openclaw/docker-compose.yml logs --tail 100 openclaw-gateway"
-
-# Follow logs in real-time
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "docker compose -f ~/openclaw/docker-compose.yml logs -f openclaw-gateway"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "docker compose -f ~/openclaw/docker-compose.yml logs --tail 100 openclaw-gateway"
 
 # nginx access/error logs
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "sudo tail -50 /var/log/nginx/access.log"
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "sudo tail -50 /var/log/nginx/error.log"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "sudo tail -50 /var/log/nginx/access.log"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "sudo tail -50 /var/log/nginx/error.log"
 ```
 
 ### Restart Gateway
 
 ```bash
 # Restart container (preserves config)
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "docker compose -f ~/openclaw/docker-compose.yml restart openclaw-gateway"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "docker compose -f ~/openclaw/docker-compose.yml restart openclaw-gateway"
 ```
 
 ### Deploy Code Changes
 
 ```bash
 # Pull latest code (no rebuild needed for most changes)
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "cd ~/openclaw && git pull origin ec2-deploy"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "cd ~/openclaw && git pull origin ec2-deploy"
 
 # Full rebuild (only if Dockerfile changed)
-ssh -i "$OPENCLAW_SSH_KEY_PATH" ec2-user@16.58.140.99 "cd ~/openclaw && docker compose down && docker build -t openclaw:local . && docker compose up -d"
+ssh -i "$OPENCLAW_SSH_KEY_PATH" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ec2-user@16.58.140.99 "cd ~/openclaw && docker compose down && docker build -t openclaw:local . && docker compose up -d"
 ```
 
 ## References
