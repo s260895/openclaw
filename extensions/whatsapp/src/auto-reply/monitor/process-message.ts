@@ -419,6 +419,15 @@ export async function processMessage(params: {
           // web UI only; sending them here leaks chain-of-thought to end users.
           return;
         }
+        // Register in echo tracker BEFORE sending to prevent race condition in self-chat mode.
+        // WhatsApp echoes sent messages back as inbound events almost immediately, often before
+        // the send promise resolves. Pre-registering ensures the echo check sees the text.
+        const shouldLog = payload.text ? true : undefined;
+        params.rememberSentText(payload.text, {
+          combinedBody,
+          combinedBodySessionKey: params.route.sessionKey,
+          logVerboseMessage: shouldLog,
+        });
         await deliverWebReply({
           replyResult: payload,
           msg: params.msg,
@@ -432,12 +441,6 @@ export async function processMessage(params: {
           tableMode,
         });
         didSendReply = true;
-        const shouldLog = payload.text ? true : undefined;
-        params.rememberSentText(payload.text, {
-          combinedBody,
-          combinedBodySessionKey: params.route.sessionKey,
-          logVerboseMessage: shouldLog,
-        });
         const fromDisplay =
           params.msg.chatType === "group" ? conversationId : (params.msg.from ?? "unknown");
         const reply = resolveSendableOutboundReplyParts(payload);

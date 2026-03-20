@@ -22,6 +22,8 @@ export type WhatsAppReactionLevel = ReactionLevel;
 
 export type WhatsAppGroupConfig = {
   requireMention?: boolean;
+  /** Trigger keywords that activate the bot (e.g., ["!ai", "@bot"]). Case-insensitive prefix match. */
+  activationKeywords?: string[];
   tools?: GroupToolPolicyConfig;
   toolsBySender?: GroupToolPolicyBySenderConfig;
 };

@@ -161,6 +161,14 @@ COPY --from=runtime-assets --chown=node:node /app/docs ./docs
 # bundled discovery so package metadata that points at source entries stays valid.
 ENV OPENCLAW_BUNDLED_PLUGINS_DIR=/app/${OPENCLAW_BUNDLED_PLUGIN_DIR}
 
+# Remove optional extensions from dist that weren't built (they only have package.json, no JS)
+# This prevents runtime validation errors about missing entry files
+RUN for ext in msteams nostr tlon twitch zalouser acpx diagnostics-otel diffs googlechat matrix memory-lancedb ui; do \
+      if [ -d "/app/dist/extensions/$ext" ] && [ ! -f "/app/dist/extensions/$ext/index.js" ]; then \
+        rm -rf "/app/dist/extensions/$ext"; \
+      fi; \
+    done
+
 # Keep pnpm available in the runtime image for container-local workflows.
 # Use a shared Corepack home so the non-root `node` user does not need a
 # first-run network fetch when invoking pnpm.

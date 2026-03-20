@@ -17,6 +17,8 @@ const ToolPolicyBySenderSchema = z.record(z.string(), ToolPolicySchema).optional
 const WhatsAppGroupEntrySchema = z
   .object({
     requireMention: z.boolean().optional(),
+    /** Trigger keywords that activate the bot (e.g., ["!ai", "@bot"]). Case-insensitive prefix match. */
+    activationKeywords: z.array(z.string()).optional(),
     tools: ToolPolicySchema,
     toolsBySender: ToolPolicyBySenderSchema,
   })

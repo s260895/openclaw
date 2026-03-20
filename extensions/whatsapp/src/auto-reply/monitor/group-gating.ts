@@ -18,6 +18,51 @@ import { stripMentionsForCommand } from "./commands.js";
 import { resolveGroupActivationFor, resolveGroupPolicyFor } from "./group-activation.js";
 import { noteGroupMember } from "./group-members.js";
 
+/**
+ * Check if message starts with any activation keyword (case-insensitive).
+ * Returns the matched keyword if found, otherwise null.
+ */
+function matchActivationKeyword(
+  body: string,
+  keywords: string[] | undefined,
+): string | null {
+  if (!keywords || keywords.length === 0) {
+    return null;
+  }
+  const trimmedBody = body.trim().toLowerCase();
+  for (const keyword of keywords) {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (normalizedKeyword && trimmedBody.startsWith(normalizedKeyword)) {
+      return keyword;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve activation keywords for a group from config.
+ * Checks group-specific config first, then falls back to wildcard "*" config.
+ */
+function resolveActivationKeywords(
+  cfg: ReturnType<typeof loadConfig>,
+  conversationId: string,
+): string[] | undefined {
+  const groups = cfg.channels?.whatsapp?.groups as
+    | Record<string, { activationKeywords?: string[] } | undefined>
+    | undefined;
+  if (!groups) {
+    return undefined;
+  }
+  // Check group-specific config first
+  const groupConfig = groups[conversationId];
+  if (groupConfig?.activationKeywords) {
+    return groupConfig.activationKeywords;
+  }
+  // Fall back to wildcard config
+  const wildcardConfig = groups["*"];
+  return wildcardConfig?.activationKeywords;
+}
+
 export type GroupHistoryEntry = {
   sender: string;
   body: string;
@@ -145,15 +190,27 @@ export function applyGroupGating(params: ApplyGroupGatingParams) {
   // WhatsApp may report the quoted message sender as either a phone JID
   // (xxxxx@s.whatsapp.net) or a LID (xxxxx@lid), so we compare both.
   const implicitMention = identitiesOverlap(self, replyContext?.sender);
+
+  // Check for activation keywords (e.g., "!ai", "@bot")
+  const activationKeywords = resolveActivationKeywords(params.cfg, params.conversationId);
+  const matchedKeyword = matchActivationKeyword(params.msg.body, activationKeywords);
+  const keywordActivated = matchedKeyword !== null;
+  if (keywordActivated) {
+    params.logVerbose(
+      `Activation keyword "${matchedKeyword}" detected in group ${params.conversationId}`,
+    );
+  }
+
   const mentionGate = resolveMentionGating({
     requireMention,
     canDetectMention: true,
     wasMentioned,
     implicitMention,
-    shouldBypassMention,
+    // Bypass mention requirement if activation keyword matched or other bypass conditions
+    shouldBypassMention: shouldBypassMention || keywordActivated,
   });
-  params.msg.wasMentioned = mentionGate.effectiveWasMentioned;
-  if (!shouldBypassMention && requireMention && mentionGate.shouldSkip) {
+  params.msg.wasMentioned = mentionGate.effectiveWasMentioned || keywordActivated;
+  if (!shouldBypassMention && !keywordActivated && requireMention && mentionGate.shouldSkip) {
     return skipGroupMessageAndStoreHistory(
       params,
       `Group message stored for context (no mention detected) in ${params.conversationId}: ${params.msg.body}`,
