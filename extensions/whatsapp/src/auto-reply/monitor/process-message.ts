@@ -267,6 +267,8 @@ export async function processMessage(params: {
 
   const textLimit = params.maxMediaTextChunkLimit ?? resolveTextChunkLimit(params.cfg, "whatsapp");
   const chunkMode = resolveChunkMode(params.cfg, "whatsapp", params.route.accountId);
+  const account = resolveWhatsAppAccount({ cfg: params.cfg, accountId: params.route.accountId });
+  const blockStreamingEnabled = account.blockStreaming === true;
   const tableMode = resolveMarkdownTableMode({
     cfg: params.cfg,
     channel: "whatsapp",
@@ -413,10 +415,12 @@ export async function processMessage(params: {
         }
       },
       deliver: async (payload: ReplyPayload, info) => {
-        if (info.kind !== "final") {
-          // Only deliver final replies to external messaging channels (WhatsApp).
-          // Block (reasoning/thinking) and tool updates are meant for the internal
-          // web UI only; sending them here leaks chain-of-thought to end users.
+        if (info.kind !== "final" && info.kind !== "block") {
+          // Tool updates are meant for the internal web UI only.
+          return;
+        }
+        if (info.kind === "block" && !blockStreamingEnabled) {
+          // Block streaming not enabled for this account - skip intermediate messages.
           return;
         }
         // Register in echo tracker BEFORE sending to prevent race condition in self-chat mode.
@@ -465,9 +469,9 @@ export async function processMessage(params: {
       onReplyStart: params.msg.sendComposing,
     },
     replyOptions: {
-      // WhatsApp delivery intentionally suppresses non-final payloads.
-      // Keep block streaming disabled so final replies are still produced.
-      disableBlockStreaming: true,
+      // Block streaming can be enabled per-account via channels.whatsapp.blockStreaming
+      // or channels.whatsapp.accounts.<account>.blockStreaming config.
+      disableBlockStreaming: !blockStreamingEnabled,
       onModelSelected,
     },
   });
