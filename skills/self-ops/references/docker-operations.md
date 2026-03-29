@@ -2,6 +2,47 @@
 
 All Docker commands should be run from the `~/openclaw` directory on EC2.
 
+## ⚠️ Container vs Host Filesystem
+
+The gateway runs inside a container with a DIFFERENT filesystem view than the host:
+
+| What | Host (EC2) | Container |
+|------|------------|-----------|
+| Home dir | `/home/ec2-user` | `/home/node` |
+| Config dir | `~/.openclaw/` | `/home/node/.openclaw/` |
+| SSH keys | `~/openclaw/*.pem` | `/home/node/.ssh/*.pem` |
+| Process user | `ec2-user` (visible in `ps`) | `node` (inside container) |
+
+**Key insight:** When you run `ps aux | grep openclaw`, you see `ec2-user` as the owner because Docker runs as that user on the host. But INSIDE the container, the process runs as `node` and sees `/home/node/` paths.
+
+### Why This Matters for Config
+
+The `~/.openclaw/openclaw.json` file is SHARED between host and container via volume mount. But paths INSIDE this config file must be container paths:
+
+```json
+// WRONG - host path, container can't access this
+"workspace": "/home/ec2-user/.openclaw/workspace"
+
+// CORRECT - container path
+"workspace": "/home/node/.openclaw/workspace"
+```
+
+### Adding New Workspaces
+
+1. Create directory on HOST: `mkdir ~/.openclaw/workspace-newproject`
+2. Reference in config using CONTAINER path: `/home/node/.openclaw/workspace-newproject`
+3. The volume mount `${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw` handles the mapping
+
+### Adding New SSH Keys
+
+1. Copy key to `~/openclaw/` on host
+2. Add volume mount to `docker-compose.yml`:
+   ```yaml
+   - ./newkey.pem:/home/node/.ssh/newkey.pem:ro
+   ```
+3. Restart container: `docker compose down && docker compose up -d`
+4. Reference in skills as `/home/node/.ssh/newkey.pem` or `~/.ssh/newkey.pem`
+
 ## Container Management
 
 ### View Status

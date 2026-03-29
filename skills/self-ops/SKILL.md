@@ -8,6 +8,69 @@ metadata: {"openclaw": {"emoji": "🔧"}}
 
 Manage OpenClaw's production EC2 infrastructure via SSH.
 
+## ⚠️ CRITICAL: Docker Container Architecture
+
+**The OpenClaw gateway runs inside a Docker container, NOT directly on EC2.**
+
+This means:
+- The gateway sees paths starting with `/home/node/` (container filesystem)
+- The EC2 host uses paths starting with `/home/ec2-user/` (host filesystem)
+- Config files are shared via volume mounts, but **paths inside config must use CONTAINER paths**
+
+### Path Mapping
+
+| Host Path (EC2) | Container Path | Notes |
+|-----------------|----------------|-------|
+| `/home/ec2-user/.openclaw/` | `/home/node/.openclaw/` | Config dir |
+| `/home/ec2-user/.openclaw/workspace/` | `/home/node/.openclaw/workspace/` | Default workspace |
+| `/home/ec2-user/.openclaw/workspace-*` | `/home/node/.openclaw/workspace-*` | Agent workspaces |
+| `~/openclaw/*.pem` | `/home/node/.ssh/*.pem` | SSH keys (must be in docker-compose.yml volumes) |
+
+### ❌ NEVER DO THIS
+
+```json
+// WRONG - These are host paths, will break the gateway!
+"workspace": "/home/ec2-user/.openclaw/workspace"
+"workspace": "/home/ec2-user/.openclaw/workspace-technest"
+```
+
+### ✅ ALWAYS DO THIS
+
+```json
+// CORRECT - Container paths that the gateway can access
+"workspace": "/home/node/.openclaw/workspace"
+"workspace": "/home/node/.openclaw/workspace-technest"
+```
+
+### Safe Ways to Modify Config
+
+1. **Via Web UI** (recommended): https://openclaw.sumeetzankar.com
+2. **Via container CLI**:
+   ```bash
+   docker compose exec -T openclaw-gateway openclaw config set agents.list[2].workspace "/home/node/.openclaw/workspace-technest"
+   ```
+3. **Via jq on host** (careful with paths!):
+   ```bash
+   # If editing openclaw.json directly, ALWAYS use /home/node/ paths
+   jq '.agents.list[2].workspace = "/home/node/.openclaw/workspace-technest"' ~/.openclaw/openclaw.json
+   ```
+
+### Adding New SSH Keys for Projects
+
+SSH keys must be:
+1. Placed in `~/openclaw/` directory on host
+2. Added to `docker-compose.yml` volumes section
+3. Referenced in skills using `/home/node/.ssh/<keyname>.pem`
+
+```yaml
+# In docker-compose.yml volumes:
+- ./newproject-key.pem:/home/node/.ssh/newproject-key.pem:ro
+```
+
+Then restart: `docker compose down && docker compose up -d`
+
+---
+
 ## Connection Details
 
 | Component | Value |

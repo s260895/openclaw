@@ -2,6 +2,27 @@
 
 All paths are on the EC2 instance unless noted.
 
+## ⚠️ CRITICAL: Host vs Container Paths
+
+The gateway runs in a Docker container. **Paths in config files must use CONTAINER paths.**
+
+| Location | Host Path | Container Path |
+|----------|-----------|----------------|
+| Config dir | `/home/ec2-user/.openclaw/` | `/home/node/.openclaw/` |
+| Workspaces | `/home/ec2-user/.openclaw/workspace*` | `/home/node/.openclaw/workspace*` |
+| SSH keys | `/home/ec2-user/openclaw/*.pem` | `/home/node/.ssh/*.pem` |
+
+**When editing `openclaw.json`**: Always use `/home/node/...` paths, never `/home/ec2-user/...` paths.
+
+Example - agent workspace config:
+```json
+// ❌ WRONG - will cause "EACCES: permission denied, mkdir '/home/ec2-user'" errors
+"workspace": "/home/ec2-user/.openclaw/workspace-technest"
+
+// ✅ CORRECT - container can access this path
+"workspace": "/home/node/.openclaw/workspace-technest"
+```
+
 ## Directory Structure
 
 ```
