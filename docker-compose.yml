@@ -11,10 +11,18 @@ services:
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE:-}
       TZ: ${OPENCLAW_TZ:-UTC}
       OPENCLAW_SSH_KEY_PATH: /home/node/.ssh/openclaw-key.pem
+      # Project SSH keys for project-manager skill
+      PORTFOLIO_SSH_KEY_PATH: /home/node/.ssh/portfolio-key.pem
+      HRMS_SSH_KEY_PATH: /home/node/.ssh/hrms-key.pem
+      AGENTIC_SSH_KEY_PATH: /home/node/.ssh/agentic-key.pem
     volumes:
       - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
       - ${OPENCLAW_SSH_KEY_PATH:-./openclaw-key.pem}:/home/node/.ssh/openclaw-key.pem:ro
+      # Project SSH keys for project-manager skill
+      - ./portfolio-key.pem:/home/node/.ssh/portfolio-key.pem:ro
+      - ./hrms-key.pem:/home/node/.ssh/hrms-key.pem:ro
+      - ./agentic-key.pem:/home/node/.ssh/agentic-key.pem:ro
       ## Uncomment the lines below to enable sandbox isolation
       ## (agents.defaults.sandbox). Requires Docker CLI in the image
       ## (build with --build-arg OPENCLAW_INSTALL_DOCKER_CLI=1) or use
