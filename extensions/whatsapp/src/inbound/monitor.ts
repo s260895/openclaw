@@ -531,19 +531,9 @@ export async function monitorWebInbox(options: {
     handleConnectionUpdate as unknown as (...args: unknown[]) => void,
   );
 
-  void (async () => {
-    try {
-      const groups = await sock.groupFetchAllParticipating();
-      if (shouldLogVerbose()) {
-        logVerbose(`Hydrated ${Object.keys(groups ?? {}).length} participating groups on connect`);
-      }
-    } catch (err) {
-      const error = String(err);
-      inboundLogger.warn({ error }, "failed hydrating participating groups on connect");
-      inboundConsoleLog.warn(`Failed hydrating participating groups on connect: ${error}`);
-      logVerbose(`Failed to hydrate participating groups on connect: ${error}`);
-    }
-  })();
+  // Group metadata is fetched lazily via getGroupMeta() when messages arrive.
+  // Proactive hydration via groupFetchAllParticipating() was removed to avoid
+  // WhatsApp rate-limits on reconnect cycles (see: rate-overlimit errors).
 
   const sendApi = createWebSendApi({
     sock: {
