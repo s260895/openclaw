@@ -160,7 +160,11 @@ export async function monitorWebChannel(
       break;
     }
 
-    const active = createActiveConnectionRun(status.lastInboundAt ?? status.lastMessageAt ?? null);
+    // On reconnect, start with a clean slate so the watchdog doesn't
+    // immediately flag the new connection as stale using the old timestamp.
+    const active = createActiveConnectionRun(
+      reconnectAttempts === 0 ? (status.lastInboundAt ?? status.lastMessageAt ?? null) : null,
+    );
 
     // Watchdog to detect stuck message processing (e.g., event emitter died).
     // Tuning overrides are test-oriented; production defaults remain unchanged.

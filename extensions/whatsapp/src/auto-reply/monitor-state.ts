@@ -35,6 +35,11 @@ export function createWebChannelStatusController(statusSink?: (status: WebChanne
     snapshot: () => status,
     noteConnected(at = Date.now()) {
       Object.assign(status, createConnectedChannelStatusPatch(at));
+      // Clear stale inbound timestamps so the watchdog and health-monitor
+      // treat this as a fresh connection rather than immediately flagging it
+      // as stale based on the previous connection's last-message time.
+      status.lastInboundAt = null;
+      status.lastMessageAt = null;
       status.lastError = null;
       status.healthState = "healthy";
       emit();
